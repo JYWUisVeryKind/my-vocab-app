@@ -45,23 +45,27 @@ def to_traditional(text: str) -> str:
 
 def fetch_translation(text: str) -> str:
     try:
-        # 更換為有道長句/片語翻譯介面
-        url = "https://fanyi.youdao.com/translate?&doctype=json&type=AUTO"
-        data = {'i': text}
-        response = requests.post(url, data=data, timeout=5)
+        # 串接 Google 翻譯的免費公開通道，指定翻譯為台灣繁體中文 (zh-TW)
+        url = "https://translate.googleapis.com/translate_a/single"
+        params = {
+            "client": "gtx",
+            "sl": "auto",      # 自動偵測來源語言（支援英文單字、片語、句子）
+            "tl": "zh-TW",     # 目標語言：台灣繁體中文
+            "dt": "t",
+            "q": text
+        }
+        response = requests.get(url, params=params, timeout=5)
         
         if response.status_code == 200:
             result = response.json()
-            # 解析傳回的句子/片語翻譯
-            translate_results = result.get('translateResult', [])
-            if translate_results and translate_results[0]:
-                tgt_text = "".join([tgt.get('tgt', '') for tgt in translate_results[0]])
-                if tgt_text:
-                    # 將結果轉換為繁體中文
-                    return to_traditional(tgt_text)
+            # Google 翻譯傳回的結構中，翻譯結果會存放在第一層
+            if result and result[0]:
+                translated_text = "".join([sentence[0] for sentence in result[0] if sentence[0]])
+                if translated_text:
+                    return translated_text
         return "未找到翻譯，可手動編輯"
     except Exception as e:
-        print(f"翻譯出錯: {e}")
+        print(f"Google翻譯出錯: {e}")
         return "網路查詢失敗"
 
 async def init_db():
