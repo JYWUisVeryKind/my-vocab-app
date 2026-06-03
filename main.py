@@ -5,7 +5,6 @@ import asyncio
 import asyncpg
 import os
 import requests
-import json
 
 app = FastAPI()
 
@@ -14,42 +13,13 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# 簡易繁簡轉換字典（處理常見高頻字與結尾）
-def to_traditional(text: str) -> str:
-    # 這裡加入常見的單字查閱會遇到的簡轉繁對照
-    mapping = {
-        "查": "查", "个": "個", "两": "兩", "么": "麼", "动": "動", "国": "國",
-        "语": "語", "对": "對", "导": "導", "复": "複", "时": "時", "机": "機",
-        "发": "發", "电": "電", "体": "體", "会": "會", "经": "經", "义": "義",
-        "结": "結", "给": "給", "统": "統", "论": "論", "设": "設", "证": "證",
-        "评": "評", "识": "識", "说": "說", "软": "軟", "转": "轉", "连": "連",
-        "进": "進", "选": "選", "较": "較", "还": "還", "总": "總", "应": "應",
-        "变": "變", "开": "開", "间": "間", "关": "關", "类": "類", "验": "驗",
-        "头": "頭", "实": "實", "业": "業", "产": "產", "长": "長", "专": "專",
-        "东": "東", "车": "車", "显": "顯", "务": "務", "从": "從", "众": "眾",
-        "书": "書", "买": "買", "卖": "賣", "质": "質", "无": "無", "标": "標"
-    }
-    # 先做基礎字集替換
-    for s, t in mapping.items():
-        text = text.replace(s, t)
-    
-    # 透過網頁公開 API 進行精準繁體化（若 API 失效則保留基礎替換結果）
-    try:
-        cc_url = f"https://api.iyk0.com/sc2tc/?text={text}"
-        res = requests.get(cc_url, timeout=3)
-        if res.status_code == 200 and res.json().get("code") == 200:
-            return res.json().get("text", text)
-    except Exception:
-        pass
-    return text
-
+# 使用 Google 翻譯，直接輸出台灣繁體中文並完美支援片語與句子
 def fetch_translation(text: str) -> str:
     try:
-        # 串接 Google 翻譯的免費公開通道，指定翻譯為台灣繁體中文 (zh-TW)
         url = "https://translate.googleapis.com/translate_a/single"
         params = {
             "client": "gtx",
-            "sl": "auto",      # 自動偵測來源語言（支援英文單字、片語、句子）
+            "sl": "auto",      # 自動偵測輸入的語言
             "tl": "zh-TW",     # 目標語言：台灣繁體中文
             "dt": "t",
             "q": text
@@ -58,7 +28,6 @@ def fetch_translation(text: str) -> str:
         
         if response.status_code == 200:
             result = response.json()
-            # Google 翻譯傳回的結構中，翻譯結果會存放在第一層
             if result and result[0]:
                 translated_text = "".join([sentence[0] for sentence in result[0] if sentence[0]])
                 if translated_text:
